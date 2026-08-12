@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AURA — Tu agente IA</title>
+<style>
+:root{
+  --bg:#05060a; --ciano:#00e5ff; --naranja:#dc5000; --texto:#e8ecf2; --gris:#8a93a5;
+  --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--texto);font-family:var(--font);overflow-x:hidden}
+#bgVideo{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:.35;pointer-events:none}
+#bgOverlay{position:fixed;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(5,6,10,.88) 0%,rgba(5,6,10,.78) 40%,rgba(5,6,10,.92) 100%);pointer-events:none}
+canvas{display:block}
+#hero{height:100vh;position:relative;overflow:hidden}
+#orbCanvas{position:absolute;inset:0;width:100%;height:100%}
+#heroTxt{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;z-index:2;pointer-events:none;padding:0 20px}
+#heroTxt h1{font-size:clamp(3rem,9vw,6.5rem);font-weight:800;letter-spacing:-0.02em;line-height:1}
+#heroTxt h1 span{color:var(--ciano);text-shadow:0 0 30px rgba(0,229,255,.6)}
+#heroTxt p{margin-top:18px;font-size:clamp(1rem,2.4vw,1.4rem);color:var(--gris);max-width:620px}
+.scroll-hint{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:3;color:var(--gris);font-size:.85rem;letter-spacing:.2em;text-transform:uppercase;animation:flotar 2s ease-in-out infinite}
+@keyframes flotar{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(8px)}}
+.acto{min-height:100vh;position:relative;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:80px 24px;text-align:center;overflow:hidden}
+.acto h2{font-size:clamp(2rem,5vw,3.5rem);font-weight:700;margin-bottom:16px}
+.acto h2 em{font-style:normal;color:var(--ciano)}
+.acto .sub{color:var(--gris);max-width:560px;font-size:clamp(1rem,2vw,1.2rem);line-height:1.6}
+#voz{background:radial-gradient(ellipse at 50% 40%,rgba(0,229,255,.06),transparent 60%)}
+.burbujas{position:relative;width:100%;max-width:420px;margin-top:40px;min-height:340px}
+.burbuja{position:absolute;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.35);border-radius:18px;padding:14px 18px;font-size:.95rem;backdrop-filter:blur(4px);box-shadow:0 0 24px rgba(0,229,255,.15);opacity:0;animation:aparecer .8s forwards}
+@keyframes aparecer{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+#vozCanvas{position:absolute;inset:0;pointer-events:none}
+#mente{position:relative}
+#menteCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#identidad{background:#0a0a0a;min-height:80vh;justify-content:center;overflow:hidden}
+#identidad .palabra{font-size:clamp(4rem,16vw,13rem);font-weight:900;letter-spacing:-0.04em;line-height:.9;color:#fff;position:relative;z-index:2;text-align:center;text-transform:uppercase}
+#identidad .palabra .letra{display:inline-block;opacity:0;transform:translateY(60px) rotate(6deg);animation:letraIn .9s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes letraIn{to{opacity:1;transform:translateY(0) rotate(0)}}
+#identidad .tag{margin-top:22px;color:#8a93a5;font-size:clamp(.9rem,2vw,1.1rem);letter-spacing:.35em;text-transform:uppercase;position:relative;z-index:2;opacity:0;animation:aparecer 1s .8s forwards}
+#identidad .linea{margin-top:40px;width:64px;height:2px;background:#fff;position:relative;z-index:2;opacity:0;animation:crece 1.2s 1.1s ease forwards}
+@keyframes crece{from{width:0;opacity:1}to{width:64px;opacity:1}}
+.iconos-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:18px;width:100%;max-width:720px;margin-top:40px;position:relative;z-index:2}
+.ico{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:22px 12px;display:flex;flex-direction:column;gap:10px;align-items:center;transition:border-color .3s,box-shadow .3s}
+.ico:hover{border-color:rgba(0,229,255,.5);box-shadow:0 0 30px rgba(0,229,255,.15)}
+.ico svg{width:34px;height:34px;stroke:var(--ciano);filter:drop-shadow(0 0 8px rgba(0,229,255,.5))}
+.ico span{font-size:.9rem;color:var(--gris)}
+#dialogo{position:relative}
+.chat-box{width:100%;max-width:520px;margin-top:36px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:20px;overflow:hidden;position:relative;z-index:2}
+.chat-head{padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px;font-size:.9rem;color:var(--gris)}
+.chat-head .punto{width:10px;height:10px;border-radius:50%;background:var(--ciano);box-shadow:0 0 12px rgba(0,229,255,.8);animation:latido 2s infinite}
+@keyframes latido{0%,100%{opacity:1}50%{opacity:.4}}
+.chat-body{height:260px;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px;font-size:.95rem}
+.msg{max-width:82%;padding:10px 14px;border-radius:14px;line-height:1.45;animation:aparecer .4s}
+.msg.user{align-self:flex-end;background:var(--naranja);color:#fff}
+.msg.aura{align-self:flex-start;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3)}
+.chat-foot{display:flex;gap:8px;padding:12px;border-top:1px solid rgba(255,255,255,.08)}
+.chat-foot input{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:11px 14px;color:var(--texto);font-size:.95rem;outline:none}
+.chat-foot input:focus{border-color:var(--ciano)}
+.chat-foot button{background:var(--naranja);border:none;border-radius:12px;padding:11px 18px;color:#fff;font-weight:600;cursor:pointer;font-size:.95rem}
+.chat-foot button:hover{filter:brightness(1.15)}
+.chat-foot button:disabled{opacity:.5;cursor:wait}
+#horizonte{min-height:70vh}
+#horizonteCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.cta{position:relative;z-index:2;margin-top:30px}
+.cta a{display:inline-block;background:var(--naranja);color:#fff;text-decoration:none;padding:16px 40px;border-radius:999px;font-weight:700;font-size:1.1rem;box-shadow:0 0 40px rgba(220,80,0,.4);transition:transform .2s,box-shadow .2s}
+.cta a:hover{transform:translateY(-2px);box-shadow:0 0 60px rgba(220,80,0,.6)}
+.cta .sec{color:var(--gris);margin-top:14px;font-size:.85rem}
+/* ===== CARRUSEL ===== */
+#carousel{background:linear-gradient(180deg,#05060a,#0a1018);min-height:auto;padding:100px 24px}
+.carousel-wrap{position:relative;width:100%;max-width:860px;margin:44px auto 0;overflow:hidden;border-radius:24px;border:1px solid rgba(0,229,255,.15);background:rgba(255,255,255,.02);box-shadow:0 0 60px rgba(0,229,255,.08)}
+.carousel-track{display:flex;transition:transform .6s cubic-bezier(.16,1,.3,1)}
+.carousel-slide{min-width:100%;padding:60px 40px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px}
+.carousel-slide .big-ico{width:84px;height:84px;border-radius:22px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.3);display:flex;align-items:center;justify-content:center;box-shadow:0 0 40px rgba(0,229,255,.25);animation:latido 3s infinite}
+.carousel-slide .big-ico svg{width:40px;height:40px;stroke:var(--ciano)}
+.carousel-slide h3{font-size:clamp(1.5rem,3.5vw,2.2rem);color:#fff}
+.carousel-slide p{color:var(--gris);max-width:520px;line-height:1.6}
+.carousel-nav{display:flex;justify-content:center;gap:10px;margin-top:22px}
+.carousel-dot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.18);cursor:pointer;transition:background .3s,transform .3s;border:none}
+.carousel-dot.activo{background:var(--ciano);box-shadow:0 0 14px rgba(0,229,255,.7);transform:scale(1.3)}
+.carousel-arrow{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);color:var(--ciano);width:44px;height:44px;border-radius:50%;cursor:pointer;font-size:1.3rem;z-index:5;transition:background .3s}
+.carousel-arrow:hover{background:rgba(0,229,255,.25)}
+.carousel-arrow.prev{left:14px}
+.carousel-arrow.next{right:14px}
+/* ===== REVEAL ===== */
+.reveal{opacity:0;transform:translateY(36px);transition:opacity .8s ease,transform .8s cubic-bezier(.16,1,.3,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal[data-delay="1"]{transition-delay:.12s}
+.reveal[data-delay="2"]{transition-delay:.24s}
+.reveal[data-delay="3"]{transition-delay:.36s}
+/* ===== LOOP: scroll horizontal descomponiendo video ===== */
+#loop{height:320vh;position:relative}
+#loopSticky{position:sticky;top:0;height:100vh;overflow:hidden;display:flex;align-items:center;justify-content:center}
+#loopCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#loopOverlay{position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,6,10,.7),transparent 30%,transparent 70%,rgba(5,6,10,.7));display:flex;flex-direction:column;justify-content:center;padding:0 8vw;pointer-events:none}
+#loopOverlay h2{font-size:clamp(2rem,5vw,3.5rem);font-weight:700;margin-bottom:12px;text-shadow:0 0 30px rgba(0,0,0,.8)}
+#loopOverlay p{color:var(--gris);max-width:460px;line-height:1.6;text-shadow:0 2px 12px rgba(0,0,0,.9)}
+#loopBar{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);width:min(420px,70vw);height:3px;background:rgba(255,255,255,.15);border-radius:2px;z-index:5}
+#loopBarFill{height:100%;width:0;background:var(--naranja);border-radius:2px;box-shadow:0 0 12px rgba(220,80,0,.6)}
+/* ===== NÚCLEO: mezcla de los 2 renders del orbe ===== */
+#nucleo{position:relative;height:100vh;overflow:hidden}
+#nucleo .orb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#orbB{opacity:0;transition:opacity .4s linear}
+#nucleoOverlay{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 30%,rgba(5,6,10,.55) 75%,rgba(5,6,10,.9));display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:0 24px}
+#nucleoOverlay h2{font-size:clamp(2.2rem,6vw,4.5rem);font-weight:800;color:#fff;text-shadow:0 0 40px rgba(0,229,255,.5);opacity:0;transform:scale(.92);transition:opacity 1s,transform 1s}
+#nucleoOverlay p{margin-top:16px;color:#d5dbe6;max-width:540px;line-height:1.6;font-size:clamp(1rem,2vw,1.2rem);opacity:0;transform:translateY(20px);transition:opacity 1s .3s,transform 1s .3s}
+#nucleo.activo #nucleoOverlay h2{opacity:1;transform:scale(1)}
+#nucleo.activo #nucleoOverlay p{opacity:1;transform:translateY(0)}
+#nucleoBar{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);width:min(360px,60vw);height:3px;background:rgba(255,255,255,.18);border-radius:2px;z-index:5}
+#nucleoBarFill{height:100%;width:0;background:var(--ciano);border-radius:2px;box-shadow:0 0 12px rgba(0,229,255,.7)}
+/* ===== TICKER ===== */
+#ticker{overflow:hidden;padding:26px 0;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);background:rgba(0,229,255,.03)}
+.ticker-track{display:flex;gap:56px;white-space:nowrap;animation:tickerMove 22s linear infinite;width:max-content}
+.ticker-track span{font-size:1.05rem;color:var(--gris);letter-spacing:.12em;text-transform:uppercase}
+.ticker-track span b{color:var(--ciano)}
+@keyframes tickerMove{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+/* ===== PARALLAX HERO ===== */
+#heroTxt{animation:heroIn 1.4s cubic-bezier(.16,1,.3,1) both}
+@keyframes heroIn{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+footer{padding:30px;text-align:center;color:var(--gris);font-size:.8rem;border-top:1px solid rgba(255,255,255,.06)}
+/* ===== FOOTER CON LOS 2 ORBES ===== */
+#footerVideos{position:relative;overflow:hidden;padding:90px 24px 40px;background:#020308}
+#footerVideos .fv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.5;pointer-events:none}
+#footerVideos .fvB{opacity:0;transition:opacity .5s ease}
+#footerVideos:hover .fvB{opacity:.5}
+#footerVideos .fvOverlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(2,3,8,.75),rgba(2,3,8,.5) 45%,rgba(2,3,8,.95));pointer-events:none}
+#footerVideos .fvContent{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+#footerVideos .fvLogo{font-size:clamp(2.5rem,6vw,4rem);font-weight:900;letter-spacing:-.02em;color:#fff}
+#footerVideos .fvLogo span{color:var(--ciano)}
+#footerVideos .fvTag{color:var(--gris);letter-spacing:.3em;text-transform:uppercase;font-size:.75rem}
+#footerVideos .fvCopy{margin-top:26px;color:var(--gris);font-size:.8rem;opacity:.8}
+/* ===== VITRINA AURA: molde unificado ===== */
+#vitrina{padding:110px 24px;background:linear-gradient(180deg,#05060a 0%,#0a1018 100%);position:relative}
+#vitrina .vitrina-head{text-align:center;margin-bottom:56px}
+#vitrina .vitrina-head h2{font-size:clamp(2rem,5vw,3.4rem);font-weight:800}
+#vitrina .vitrina-head h2 em{color:var(--ciano);font-style:normal}
+#vitrina .vitrina-head p{color:var(--gris);margin-top:12px;max-width:560px;margin-left:auto;margin-right:auto}
+.vitrina-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;width:100%;max-width:1200px;margin:0 auto}
+@media(max-width:980px){.vitrina-grid{grid-template-columns:1fr;max-width:520px}}
+.vit-card{background:linear-gradient(160deg,rgba(255,255,255,.045),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:30px 26px;display:flex;flex-direction:column;gap:16px;transition:transform .35s cubic-bezier(.16,1,.3,1),border-color .35s,box-shadow .35s;position:relative;overflow:hidden;min-height:520px}
+.vit-card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--ciano),transparent);opacity:0;transition:opacity .35s}
+.vit-card:hover{transform:translateY(-6px);border-color:rgba(0,229,255,.35);box-shadow:0 24px 60px rgba(0,0,0,.5),0 0 40px rgba(0,229,255,.07)}
+.vit-card:hover::before{opacity:1}
+.vit-card .vit-ico{width:52px;height:52px;border-radius:16px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.vit-card .vit-ico svg{width:26px;height:26px;stroke:var(--ciano)}
+.vit-card .vit-tag{font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;color:var(--ciano);font-weight:600}
+.vit-card h3{font-size:1.35rem;color:#fff;margin:0}
+.vit-card .vit-desc{color:var(--gris);font-size:.9rem;line-height:1.6}
+.vit-card .vit-body{margin-top:auto;display:flex;flex-direction:column;gap:12px}
+.vit-drop{border:2px dashed rgba(0,229,255,.3);border-radius:14px;padding:22px 16px;text-align:center;cursor:pointer;transition:border-color .3s,background .3s;background:rgba(0,229,255,.03)}
+.vit-drop:hover,.vit-drop.over{border-color:var(--ciano);background:rgba(0,229,255,.08)}
+.vit-drop .droptext{color:var(--gris);font-size:.85rem}
+.vit-drop .droptext b{color:var(--ciano)}
+.vit-file{margin-top:2px}
+.vit-file .file-chip{display:flex;align-items:center;gap:8px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.25);border-radius:10px;padding:8px 12px;font-size:.8rem;color:#fff}
+.vit-file .file-chip.ok{border-color:rgba(76,220,130,.4);background:rgba(76,220,130,.08)}
+.vit-file .file-chip.ok::before{content:"✓";color:#4cdc82;font-weight:700}
+.vit-inputs{display:flex;flex-direction:column;gap:10px}
+.vit-inputs input{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px 14px;color:var(--texto);font-size:.9rem;outline:none;transition:border-color .3s}
+.vit-inputs input:focus{border-color:var(--ciano)}
+.vit-btn{background:var(--naranja);border:none;border-radius:12px;padding:12px 16px;color:#fff;font-weight:600;cursor:pointer;font-size:.92rem;transition:filter .25s,transform .2s}
+.vit-btn:hover{filter:brightness(1.15)}
+.vit-btn:active{transform:scale(.98)}
+.vit-btn:disabled{opacity:.5;cursor:wait}
+.vit-results{max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;font-size:.84rem;scrollbar-width:thin;scrollbar-color:rgba(0,229,255,.3) transparent}
+.vit-results .item{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 13px;line-height:1.45;color:#d5dbe6}
+.vit-results .item b{color:var(--ciano);display:block;margin-bottom:3px;font-size:.86rem}
+.vit-results .item a{color:var(--gris);font-size:.76rem;text-decoration:none}
+.vit-results .item a:hover{color:var(--ciano)}
+.vit-results .msg-aura{background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.22);border-radius:11px;padding:11px 13px;color:#d5dbe6;line-height:1.5}
+.vit-results .msg-user{align-self:flex-end;background:rgba(220,80,0,.16);border:1px solid rgba(220,80,0,.4);border-radius:11px;padding:9px 13px;color:#fff;font-size:.84rem;max-width:85%}
+.vit-note{margin-top:10px;font-size:.72rem;color:rgba(138,147,165,.8);text-align:center}
+/* sincronía: las 3 tarjetas misma altura en desktop */
+@media(min-width:981px){.vit-card{height:100%}.vitrina-grid{align-items:stretch}}
+/* ===== CHATVOZ (imagen intacta, sin PIN) ===== */
+.voz-box{width:min(520px,100%);margin:40px auto 0;background:#050505;border:1px solid rgba(255,255,255,.08);border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.55)}
+.voz-head{flex-shrink:0;text-align:center;padding:14px 0 4px;position:relative;z-index:2}
+.voz-status{font-size:.7rem;color:rgba(255,255,255,.4);letter-spacing:.5px}
+#vozAva{display:block;margin:0 auto;pointer-events:none;border-radius:50%}
+.voz-chat{flex:1;overflow-y:auto;padding:4px 20px;min-height:180px;max-height:240px;scroll-behavior:smooth}
+.voz-chat::-webkit-scrollbar{width:5px}
+.voz-chat::-webkit-scrollbar-thumb{background:rgba(99,102,241,.2);border-radius:4px}
+.voz-chat .msg{display:flex;gap:10px;margin-bottom:12px;animation:fadeIn .3s ease;max-width:90%}
+.voz-chat .msg.usr{flex-direction:row-reverse;margin-left:auto}
+.voz-chat .msg.bot{margin-right:auto}
+.voz-chat .msg .av{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px}
+.voz-chat .msg.bot .av{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff}
+.voz-chat .msg.usr .av{background:rgba(255,255,255,.06);color:rgba(255,255,255,.65)}
+.voz-chat .msg .b{padding:10px 16px;border-radius:16px;font-size:.9rem;line-height:1.5;word-break:break-word}
+.voz-chat .msg.bot .b{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.9);border-radius:4px 16px 16px 16px}
+.voz-chat .msg.usr .b{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border-radius:16px 4px 16px 16px}
+.voz-chat .dots{display:inline-flex;gap:3px;padding:8px 0}
+.voz-chat .dots span{width:6px;height:6px;border-radius:50%;background:#6366f1;animation:bounce 1.4s infinite ease}
+.voz-chat .dots span:nth-child(2){animation-delay:.2s}.voz-chat .dots span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.voz-input{flex-shrink:0;padding:0 20px 18px;display:flex;gap:10px;align-items:center}
+.voz-input input{flex:1;background:#0a0a0f;color:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 16px;font-size:.9rem;outline:none;transition:border .2s}
+.voz-input input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.06)}
+.voz-send{padding:12px 18px;border-radius:14px;border:none;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;font-weight:600;cursor:pointer;font-size:.85rem;transition:transform .15s,box-shadow .15s;white-space:nowrap}
+.voz-send:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(99,102,241,.25)}
+.voz-send:active{transform:scale(.95)}
+.voz-mic{width:46px;height:46px;border-radius:50%;border:2px solid rgba(255,255,255,.08);background:#0a0a0f;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;transition:all .2s}
+.voz-mic:hover{border-color:rgba(99,102,241,.4)}
+.voz-mic.rec{border-color:#ef4444;background:rgba(239,68,68,.1);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.3)}50%{box-shadow:0 0 0 10px rgba(239,68,68,0)}}
+@media(max-width:640px){.burbujas{min-height:300px}.chat-body{height:220px}}
+/* ===== 24c: EFECTOS PREMIUM (JS vanilla) ===== */
+#heroLoop{margin-top:18px;font-size:clamp(1.1rem,3vw,1.5rem);color:var(--gris)}
+#loopWord{color:var(--ciano);font-weight:700;text-shadow:0 0 20px rgba(0,229,255,.5);display:inline-block;min-width:9ch;text-align:left}
+#scrambleTitulo{font-variant-numeric:tabular-nums}
+.shimmer{background:linear-gradient(90deg,var(--ciano) 0%,#fff 50%,var(--ciano) 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmerMove 2.4s linear infinite}
+@keyframes shimmerMove{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.vitrina-stats{display:flex;gap:34px;justify-content:center;margin-top:26px;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column;align-items:center;gap:2px}
+.stat .num{font-size:clamp(2rem,5vw,2.8rem);font-weight:800;color:var(--ciano);font-variant-numeric:tabular-nums;text-shadow:0 0 30px rgba(0,229,255,.4)}
+.stat label{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gris)}
+.magnetic{transition:transform .25s cubic-bezier(.16,1,.3,1)}
+#cursorGlow{position:fixed;width:320px;height:320px;border-radius:50%;pointer-events:none;z-index:0;background:radial-gradient(circle,rgba(0,229,255,.07) 0%,transparent 60%);transform:translate(-50%,-50%);left:-999px;top:-999px;mix-blend-mode:screen}
+@media(hover:hover){#cursorGlow{display:block}}@media(hover:none){#cursorGlow{display:none}}
+</style>
+</head>
+<body>
+<div id="cursorGlow"></div>
+<video id="bgVideo" autoplay muted loop playsinline src="/videos/tipo.mp4"></video>
+<div id="bgOverlay"></div>
+
+<section id="hero">
+  <canvas id="orbCanvas"></canvas>
+  <div id="heroTxt">
+    <h1 id="scrambleTitulo">AURA<span>.</span></h1>
+    <p>Tu agente de IA — nace con tus datos, piensa con tu contexto, trabaja contigo. Sin humo, sin promesas: un agente que responde, aprende y automatiza.</p>
+    <div id="heroLoop">Tu agente que: <span id="loopWord">chatea</span></div>
+  </div>
+  <div class="scroll-hint">Desliza ↓</div>
+</section>
+
+<div id="ticker">
+  <div class="ticker-track" id="tickerTrack">
+    <span><b>CHAT</b> CON CONTEXTO</span><span><b>VOZ</b> NATIVA</span><span><b>DATOS</b> CONECTADOS</span><span><b>AUTOMATIZACIÓN</b> SIN CÓDIGO</span><span><b>RAG</b> MULTILINGÜE</span><span><b>24/7</b> SIEMPRE ACTIVO</span>
+  </div>
+</div>
+
+<section class="acto" id="voz">
+  <canvas id="vozCanvas"></canvas>
+  <h2 class="reveal">AURA <em>escucha</em></h2>
+  <p class="sub reveal" data-delay="1">Cada mensaje se convierte en respuesta con contexto. Chat, voz y documentos — un solo agente que te entiende en cualquier idioma.</p>
+  <div class="burbujas" id="burbujas">
+    <div class="burbuja" style="top:0;left:0">"¿Qué tal las ventas de esta semana?"</div>
+    <div class="burbuja" style="top:70px;right:0">"Subieron 12% vs la semana pasada 📈"</div>
+    <div class="burbuja" style="top:160px;left:30px">"¿Y qué cliente está en riesgo?"</div>
+    <div class="burbuja" style="top:240px;right:20px">"Tres con ticket alto y sin compras en 30 días."</div>
+  </div>
+</section>
+
+<section class="acto" id="mente">
+  <canvas id="menteCanvas"></canvas>
+  <h2 class="reveal">AURA <em>piensa</em></h2>
+  <p class="sub reveal" data-delay="1">Un núcleo que se adapta a tu negocio: respuestas con tus datos, no genéricas.</p>
+  <div class="iconos-meta">
+    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Chat con contexto</span></div>
+    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg><span>Voz</span></div>
+    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg><span>Datos conectados</span></div>
+    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg><span>Automatización</span></div>
+  </div>
+</section>
+
+<section class="acto" id="carousel">
+  <h2 class="reveal">Una sola AURA, <em>todas las capacidades</em></h2>
+  <div class="carousel-wrap reveal" data-delay="1">
+    <div class="carousel-track" id="carouselTrack">
+      <div class="carousel-slide">
+        <div class="big-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+        <h3>Chat con contexto</h3>
+        <p>Respuestas basadas en TUS documentos y datos — no genéricas. Conversación con memoria, en cualquier idioma.</p>
+      </div>
+      <div class="carousel-slide">
+        <div class="big-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg></div>
+        <h3>Voz nativa</h3>
+        <p>Habla y AURA te escucha. Reconocimiento y síntesis de voz para equipos que prefieren hablar a escribir.</p>
+      </div>
+      <div class="carousel-slide">
+        <div class="big-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
+        <h3>Datos conectados</h3>
+        <p>Se conecta a tus tablas, CRMs y bases. Pregunta en lenguaje natural y recibe números reales, no estimaciones.</p>
+      </div>
+      <div class="carousel-slide">
+        <div class="big-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+        <h3>Automatización</h3>
+        <p>Dispara flujos, genera reportes, clasifica leads. AURA no solo responde: ejecuta.</p>
+      </div>
+      <div class="carousel-slide">
+        <div class="big-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+        <h3>RAG multilingüe</h3>
+        <p>Documentación, manuales, contratos — vectorizados y consultables con citas verificadas. En español, inglés y más.</p>
+      </div>
+    </div>
+    <button class="carousel-arrow prev" id="carPrev">‹</button>
+    <button class="carousel-arrow next" id="carNext">›</button>
+  </div>
+  <div class="carousel-nav" id="carouselNav"></div>
+</section>
+
+<section class="acto" id="identidad">
+  <div class="palabra" id="palabraAura"></div>
+  <div class="tag">Identidad · Movimiento · Claridad</div>
+  <div class="linea"></div>
+</section>
+
+<section id="nucleo">
+  <video class="orb" id="orbA" autoplay muted loop playsinline src="/videos/orbeA.mp4"></video>
+  <video class="orb" id="orbB" autoplay muted loop playsinline src="/videos/orbeB.mp4"></video>
+  <div id="nucleoOverlay">
+    <h2>El <em>núcleo</em></h2>
+    <p>Dos momentos, una sola esencia. AURA evoluciona como tu negocio: cada iteración lo hace más brillante.</p>
+  </div>
+  <div id="nucleoBar"><div id="nucleoBarFill"></div></div>
+</section>
+
+<section id="loop">
+  <div id="loopSticky">
+    <canvas id="loopCanvas"></canvas>
+    <div id="loopOverlay">
+      <h2>En <em>movimiento</em> constante</h2>
+      <p>La ciudad no se detiene — tu negocio tampoco. AURA procesa en loop: cada segundo de datos se convierte en acción.</p>
+    </div>
+    <div id="loopBar"><div id="loopBarFill"></div></div>
+  </div>
+</section>
+
+<section class="acto" id="dialogo">
+  <h2 class="reveal">Háblale <em>ahora</em></h2>
+  <p class="sub reveal" data-delay="1">AURA con voz: presiona el micrófono y habla, o escribe. Responde con IA en vivo.</p>
+  <div class="voz-box reveal" data-delay="1">
+    <div class="voz-head">
+      <span class="voz-status" id="vozStatus">💬 Escuchando...</span>
+    </div>
+    <canvas id="vozAva" width="90" height="110"></canvas>
+    <div class="voz-chat" id="vozChat">
+      <div class="msg bot">
+        <div class="av">🤖</div>
+        <div class="b">Hola! Escribe o presiona el microfono.</div>
+      </div>
+    </div>
+    <div class="voz-input">
+      <button class="voz-mic" id="vozMic" onclick="vozToggle()">🎤</button>
+      <input id="vozInp" placeholder="Escribe un mensaje..." autocomplete="off" onkeydown="if(event.key==='Enter')vozSend()">
+      <button class="voz-send" onclick="vozSend()">Enviar</button>
+    </div>
+  </div>
+</section>
+
+<section class="acto" id="horizonte">
+  <canvas id="horizonteCanvas"></canvas>
+  <h2 class="reveal">Tu agente, <em>listo</em></h2>
+  <p class="sub reveal" data-delay="1">AURA se construye sobre tu negocio: tus documentos, tus datos, tus reglas. En días, no meses.</p>
+  <div class="cta">
+    <a href="#dialogo">Crea tu AURA →</a>
+    <div class="sec">Demo funcional · Sin tarjeta · Listo en 48h</div>
+  </div>
+</section>
+
+<section class="acto" id="vitrina">
+  <div class="vitrina-head">
+    <h2>Productos <em class="shimmer">en vivo</em></h2>
+    <p>Tres demos funcionales, un solo molde. Sube un documento, busca noticias o investiga papers — todo en AURA.</p>
+    <div class="vitrina-stats">
+      <div class="stat"><span class="num" data-num="3">0</span><label>Demos</label></div>
+      <div class="stat"><span class="num" data-num="5">0</span><label>Noticias/vez</label></div>
+      <div class="stat"><span class="num" data-num="24">0</span><label>h/7 días</label></div>
+    </div>
+  </div>
+  <div class="vitrina-grid">
+
+    <!-- RAG con upload -->
+    <div class="vit-card reveal">
+      <div class="vit-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+      <div class="vit-tag">RAG · Embeddings</div>
+      <h3>Chatbot RAG</h3>
+      <p class="vit-desc">Sube tus documentos (PDF, Word, TXT) — AURA los indexa al instante y responde con TU contexto, citando la fuente.</p>
+      <div class="vit-body">
+        <div class="vit-drop" id="ragDrop">
+          <div class="droptext"><b>Arrastra tu archivo</b><br>o haz clic para subir · PDF/DOCX/TXT</div>
+        </div>
+        <input type="file" id="ragFile" accept=".pdf,.docx,.txt,.md" hidden>
+        <div class="vit-file" id="ragFileChip" style="display:none"></div>
+        <div class="vit-inputs">
+          <input id="ragInput" placeholder="Pregunta sobre tu documento…" autocomplete="off">
+          <button class="vit-btn" id="ragBtn">Preguntar</button>
+        </div>
+        <div class="vit-results" id="ragResults"><div class="msg-aura">Sube un documento y pregúntale lo que quieras saber. 📄</div></div>
+        <div class="vit-note">Demo: los archivos se indexan en memoria y se limpian al recargar.</div>
+      </div>
+    </div>
+
+    <!-- Noticias -->
+    <div class="vit-card reveal" data-delay="1">
+      <div class="vit-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6z"/></svg></div>
+      <div class="vit-tag">NewsAPI · En español</div>
+      <h3>Chatbot de Noticias</h3>
+      <p class="vit-desc">Las noticias del día o de un tema específico, en español y al instante. Alimentado con NewsAPI en vivo.</p>
+      <div class="vit-body">
+        <div class="vit-inputs">
+          <input id="newsInput" placeholder="Tema — vacío = portada (ej. IA)" autocomplete="off">
+          <button class="vit-btn" id="newsBtn">Buscar noticias</button>
+        </div>
+        <div class="vit-results" id="newsResults"><div class="msg-aura">Escribe un tema o deja vacío para ver la portada. 📰</div></div>
+      </div>
+    </div>
+
+    <!-- Investigativo -->
+    <div class="vit-card reveal" data-delay="2">
+      <div class="vit-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+      <div class="vit-tag">arXiv · Verificado</div>
+      <h3>Chatbot Investigativo</h3>
+      <p class="vit-desc">Busca papers académicos reales en arXiv — títulos y enlaces verificados, cero alucinaciones. Para investigación seria.</p>
+      <div class="vit-body">
+        <div class="vit-inputs">
+          <input id="invInput" placeholder="Tema — ej. RAG, LLM, agents" autocomplete="off">
+          <button class="vit-btn" id="invBtn">Buscar papers</button>
+        </div>
+        <div class="vit-results" id="invResults"><div class="msg-aura">Busca papers académicos reales de arXiv. 🔬</div></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer id="footerVideos">
+  <video class="fv" id="fvA" autoplay muted loop playsinline src="/videos/orbeA.mp4"></video>
+  <video class="fv fvB" id="fvB" autoplay muted loop playsinline src="/videos/orbeB.mp4"></video>
+  <div class="fvOverlay"></div>
+  <div class="fvContent">
+    <div class="fvLogo">AURA<span>.</span></div>
+    <div class="fvTag">BMOPS Consulting</div>
+    <div class="fvCopy">© 2026 BMOPS Consulting · AURA — tu agente de IA</div>
+  </div>
+</footer>
+
+<script>
+/* ============ HERO: orbe facetado generativo ============ */
+const orb = document.getElementById('orbCanvas');
+const octx = orb.getContext('2d');
+let orbW, orbH;
+function sizeOrb(){
+  orbW = orb.width = orb.offsetWidth;
+  orbH = orb.height = orb.offsetHeight;
+}
+sizeOrb(); window.addEventListener('resize', sizeOrb);
+
+let t = 0;
+function dibujarOrbe(){
+  octx.clearRect(0,0,orbW,orbH);
+  const cx = orbW/2, cy = orbH*0.42;
+  const R = Math.min(orbW,orbH)*0.28 + Math.sin(t*0.5)*6;
+  // glow exterior
+  const g = octx.createRadialGradient(cx,cy,R*0.2,cx,cy,R*2.2);
+  g.addColorStop(0,'rgba(0,229,255,.35)');
+  g.addColorStop(1,'rgba(0,229,255,0)');
+  octx.fillStyle = g;
+  octx.beginPath(); octx.arc(cx,cy,R*2.2,0,Math.PI*2); octx.fill();
+  // esfera base
+  const sg = octx.createRadialGradient(cx-R*0.35,cy-R*0.35,R*0.1,cx,cy,R);
+  sg.addColorStop(0,'#0e2230');
+  sg.addColorStop(0.6,'#04121c');
+  sg.addColorStop(1,'#01060a');
+  octx.fillStyle = sg;
+  octx.beginPath(); octx.arc(cx,cy,R,0,Math.PI*2); octx.fill();
+  // facetas (triángulos girando)
+  const n = 14;
+  for(let i=0;i<n;i++){
+    const a = (i/n)*Math.PI*2 + t*0.35;
+    const rr = R*(0.35 + 0.5*Math.abs(Math.sin(a*2+t)));
+    const x1 = cx + Math.cos(a)*R, y1 = cy + Math.sin(a)*R;
+    const x2 = cx + Math.cos(a+0.5)*R*0.9, y2 = cy + Math.sin(a+0.5)*R*0.9;
+    const x3 = cx + Math.cos(a+0.22)*rr, y3 = cy + Math.sin(a+0.22)*rr;
+    octx.strokeStyle = `rgba(0,229,255,${0.25+0.2*Math.sin(a*3+t)})`;
+    octx.lineWidth = 1.4;
+    octx.beginPath(); octx.moveTo(x1,y1); octx.lineTo(x2,y2); octx.lineTo(x3,y3); octx.closePath(); octx.stroke();
+  }
+  // anillo
+  octx.strokeStyle = 'rgba(0,229,255,.5)';
+  octx.lineWidth = 1.6;
+  octx.beginPath(); octx.ellipse(cx,cy,R*1.35,R*0.42,-t*0.4,0,Math.PI*2); octx.stroke();
+  octx.beginPath(); octx.ellipse(cx,cy,R*1.35,R*0.42,-t*0.4+Math.PI/2,0,Math.PI*2); octx.stroke();
+  // partículas
+  for(let i=0;i<40;i++){
+    const a = i*2.4 + t*0.2;
+    const d = R*(1.5 + 0.9*Math.sin(i*1.7 + t*0.6));
+    const px = cx + Math.cos(a)*d, py = cy + Math.sin(a)*d*0.6;
+    const sz = 1 + Math.abs(Math.sin(i+t))*1.8;
+    octx.fillStyle = `rgba(0,229,255,${0.3+0.3*Math.sin(i+t)})`;
+    octx.beginPath(); octx.arc(px,py,sz,0,Math.PI*2); octx.fill();
+  }
+  t += 0.016;
+  requestAnimationFrame(dibujarOrbe);
+}
+dibujarOrbe();
+
+/* ============ VOZ: ondas + burbujas al hacer scroll ============ */
+const voc = document.getElementById('vozCanvas');
+const vctx = voc.getContext('2d');
+let vocW, vocH;
+function sizeVoz(){ vocW = voc.width = voc.offsetWidth; vocH = voc.height = voc.offsetHeight; }
+sizeVoz(); window.addEventListener('resize', sizeVoz);
+
+const burbujas = document.querySelectorAll('.burbuja');
+const burbujasVisible = new Set();
+function animarVoz(){
+  vctx.clearRect(0,0,vocW,vocH);
+  // líneas onduladas de fondo
+  vctx.strokeStyle = 'rgba(0,229,255,.12)';
+  vctx.lineWidth = 1.2;
+  for(let k=0;k<3;k++){
+    vctx.beginPath();
+    for(let x=0;x<=vocW;x+=14){
+      const y = vocH*0.5 + Math.sin(x*0.008 + t*0.8 + k*2)*40 + k*80;
+      x===0 ? vctx.moveTo(x,y) : vctx.lineTo(x,y);
+    }
+    vctx.stroke();
+  }
+  // activar burbujas según scroll
+  const yv = voc.getBoundingClientRect();
+  const prog = Math.min(1, Math.max(0, (window.innerHeight*0.6 - yv.top) / (yv.height*0.5)));
+  burbujas.forEach((b,i)=>{
+    if(prog > i*0.18 && !burbujasVisible.has(i)){ burbujasVisible.add(i); b.style.animationDelay = (i*0.3)+'s'; b.style.animation='none'; void b.offsetWidth; b.style.animation=''; }
+  });
+  requestAnimationFrame(animarVoz);
+}
+animarVoz();
+
+/* ============ MENTE: iconos brillantes ============ */
+const ment = document.getElementById('menteCanvas');
+const mctx = ment.getContext('2d');
+let mentW, mentH;
+function sizeMente(){ mentW = ment.width = ment.offsetWidth; mentH = ment.height = ment.offsetHeight; }
+sizeMente(); window.addEventListener('resize', sizeMente);
+function animarMente(){
+  mctx.clearRect(0,0,mentW,mentH);
+  for(let i=0;i<26;i++){
+    const x = (i*97)%mentW, y = (i*53)%mentH;
+    const sz = 1 + Math.abs(Math.sin(i + t*0.7))*2;
+    mctx.fillStyle = `rgba(0,229,255,${0.15+0.2*Math.sin(i*1.3+t)})`;
+    mctx.beginPath(); mctx.arc(x,y,sz,0,Math.PI*2); mctx.fill();
+  }
+  requestAnimationFrame(animarMente);
+}
+animarMente();
+
+/* ============ IDENTIDAD: tipografía editorial (concepto video 2) ============ */
+const palabraEl = document.getElementById('palabraAura');
+const PALABRA = 'AURA';
+let letrasListas = false;
+function montarPalabra(){
+  palabraEl.innerHTML = '';
+  [...PALABRA].forEach((ch, i) => {
+    const s = document.createElement('span');
+    s.className = 'letra';
+    s.textContent = ch;
+    s.style.animationDelay = (i * 0.14) + 's';
+    s.style.opacity = '0';
+    palabraEl.appendChild(s);
+  });
+  letrasListas = true;
+}
+montarPalabra();
+const ident = document.getElementById('identidad');
+let identActivo = false;
+function checkIdentidad(){
+  const r = ident.getBoundingClientRect();
+  if(r.top < window.innerHeight * 0.75 && !identActivo){
+    identActivo = true;
+    document.querySelectorAll('#palabraAura .letra').forEach(s => { s.style.opacity = '1'; });
+  }
+}
+window.addEventListener('scroll', checkIdentidad);
+checkIdentidad();
+
+/* ============ CARRUSEL: autoplay + flechas + dots ============ */
+const carTrack = document.getElementById('carouselTrack');
+const carPrev = document.getElementById('carPrev');
+const carNext = document.getElementById('carNext');
+const carNav = document.getElementById('carouselNav');
+const slides = carTrack.children.length;
+let carIdx = 0, carTimer = null;
+for(let i=0;i<slides;i++){
+  const d = document.createElement('button');
+  d.className = 'carousel-dot' + (i===0 ? ' activo' : '');
+  d.addEventListener('click', () => { irSlide(i); reiniciarTimer(); });
+  carNav.appendChild(d);
+}
+const dots = carNav.children;
+function irSlide(i){
+  carIdx = (i + slides) % slides;
+  carTrack.style.transform = `translateX(-${carIdx * 100}%)`;
+  [...dots].forEach((d, k) => d.classList.toggle('activo', k === carIdx));
+}
+function reiniciarTimer(){
+  clearInterval(carTimer);
+  carTimer = setInterval(() => irSlide(carIdx + 1), 4500);
+}
+carPrev.addEventListener('click', () => { irSlide(carIdx - 1); reiniciarTimer(); });
+carNext.addEventListener('click', () => { irSlide(carIdx + 1); reiniciarTimer(); });
+reiniciarTimer();
+// pausar al pasar el mouse
+const carWrap = document.querySelector('.carousel-wrap');
+carWrap.addEventListener('mouseenter', () => clearInterval(carTimer));
+carWrap.addEventListener('mouseleave', reiniciarTimer);
+// swipe táctil
+let touchX = 0;
+carWrap.addEventListener('touchstart', e => touchX = e.touches[0].clientX);
+carWrap.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchX;
+  if(Math.abs(dx) > 50){ irSlide(carIdx + (dx < 0 ? 1 : -1)); reiniciarTimer(); }
+});
+
+/* ============ REVEAL: animación al hacer scroll ============ */
+const revObserver = new IntersectionObserver(entries => {
+  entries.forEach(en => { if(en.isIntersecting) en.target.classList.add('visible'); });
+}, { threshold: 0.15 });
+document.querySelectorAll('.reveal').forEach(el => revObserver.observe(el));
+
+/* ============ NÚCLEO: crossfade entre los 2 renders del orbe ============ */
+const nucleo = document.getElementById('nucleo');
+const orbA = document.getElementById('orbA');
+const orbB = document.getElementById('orbB');
+const nucleoBarFill = document.getElementById('nucleoBarFill');
+function scrubNucleo(){
+  const r = nucleo.getBoundingClientRect();
+  const prog = Math.min(1, Math.max(0, (window.innerHeight - r.top) / window.innerHeight));
+  // crossfade: al 50% del scroll pasa de orbeA a orbeB
+  const mezcla = Math.min(1, Math.max(0, (prog - 0.35) / 0.3));
+  orbB.style.opacity = mezcla;
+  nucleoBarFill.style.width = (prog*100) + '%';
+  // activar texto al entrar
+  if(prog > 0.35) nucleo.classList.add('activo');
+}
+window.addEventListener('scroll', scrubNucleo, {passive:true});
+scrubNucleo();
+
+/* ============ LOOP: scroll-scrub descomponiendo el video ============ */
+const loopSec = document.getElementById('loop');
+const loopCanvas = document.getElementById('loopCanvas');
+const lctx = loopCanvas.getContext('2d');
+const loopBarFill = document.getElementById('loopBarFill');
+const FRAMES_LOOP = 67;
+const loopImgs = [];
+let loopListo = false, loopActual = -1;
+function sizeLoop(){ loopCanvas.width = loopCanvas.offsetWidth; loopCanvas.height = loopCanvas.offsetHeight; }
+sizeLoop(); window.addEventListener('resize', sizeLoop);
+for(let i=1;i<=FRAMES_LOOP;i++){
+  const im = new Image();
+  im.onload = () => { loopImgs[i-1] = im; if(loopImgs.filter(Boolean).length === FRAMES_LOOP) loopListo = true; };
+  im.src = '/frames/decon/f_' + String(i).padStart(3,'0') + '.jpg';
+}
+function pintarLoop(idx){
+  if(!loopListo) return;
+  const im = loopImgs[idx];
+  if(!im || idx === loopActual) return;
+  loopActual = idx;
+  const w = loopCanvas.width, h = loopCanvas.height;
+  const r = Math.max(w/im.width, h/im.height);
+  const dw = im.width*r, dh = im.height*r;
+  lctx.drawImage(im, (w-dw)/2, (h-dh)/2, dw, dh);
+}
+function scrubLoop(){
+  const r = loopSec.getBoundingClientRect();
+  const total = r.height - window.innerHeight;
+  const prog = Math.min(1, Math.max(0, -r.top / total));
+  const idx = Math.min(FRAMES_LOOP-1, Math.floor(prog * FRAMES_LOOP));
+  pintarLoop(idx);
+  loopBarFill.style.width = (prog*100) + '%';
+}
+window.addEventListener('scroll', scrubLoop, {passive:true});
+scrubLoop();
+
+/* ============ HORIZONTE: ondas que se alejan ============ */
+const hor = document.getElementById('horizonteCanvas');
+const hctx = hor.getContext('2d');
+let horW, horH;
+function sizeHor(){ horW = hor.width = hor.offsetWidth; horH = hor.height = hor.offsetHeight; }
+sizeHor(); window.addEventListener('resize', sizeHor);
+function animarHor(){
+  hctx.clearRect(0,0,horW,horH);
+  for(let k=0;k<5;k++){
+    hctx.strokeStyle = `rgba(0,229,255,${0.06+k*0.03})`;
+    hctx.lineWidth = 1.5;
+    hctx.beginPath();
+    const base = horH*0.72 + k*18;
+    for(let x=0;x<=horW;x+=10){
+      const y = base + Math.sin(x*0.006 + t*0.5 + k)*10;
+      x===0 ? hctx.moveTo(x,y) : hctx.lineTo(x,y);
+    }
+    hctx.stroke();
+  }
+  t += 0.016;
+  requestAnimationFrame(animarHor);
+}
+animarHor();
+
+/* ============ CHATVOZ (imagen intacta, gateway :3010) ============ */
+// Sonidos (Web Audio)
+let actx=null;
+function initAudio(){ if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)() }
+function playTone(freq,dur,type='sine',vol=.08){
+  try{
+    initAudio();
+    let o=actx.createOscillator(),g=actx.createGain();
+    o.type=type;o.frequency.value=freq;g.gain.value=vol;
+    g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+dur);
+    o.connect(g);g.connect(actx.destination);
+    o.start();o.stop(actx.currentTime+dur)
+  }catch(e){}
+}
+function sndSend(){playTone(600,.08,'sine',.05);setTimeout(()=>playTone(900,.1,'sine',.05),80)}
+function sndRecv(){playTone(500,.12,'sine',.04);setTimeout(()=>playTone(700,.1,'sine',.04),60)}
+function sndMicOn(){playTone(1000,.15,'sine',.04)}
+function sndMicOff(){playTone(400,.15,'triangle',.03)}
+
+// VTUBER
+let cv=document.getElementById('vozAva'),xv=cv.getContext('2d');
+let blink=0,mouthOpen=0,breath=0,speak=false,listening=false,expr='neutral',vz=0;
+function drawVtuber(){
+  vz++;breath=Math.sin(vz*0.03)*2.5;
+  if(blink>0)blink--;else if(Math.random()<0.004)blink=6;
+  if(speak)mouthOpen=Math.min(1,mouthOpen+0.1);else mouthOpen=Math.max(0,mouthOpen-0.04);
+  xv.clearRect(0,0,90,110);
+  let cx=45,cy=45;
+  // Glow
+  let g=xv.createRadialGradient(cx,cy+breath,3,cx,cy+breath,42);
+  g.addColorStop(0,'rgba(99,102,241,.08)');g.addColorStop(1,'rgba(99,102,241,0)');
+  xv.fillStyle=g;xv.beginPath();xv.arc(cx,cy+breath,42,0,Math.PI*2);xv.fill();
+  // Body hint
+  xv.fillStyle='rgba(255,255,255,0.03)';
+  xv.beginPath();xv.arc(cx,88+breath*.5,26,Math.PI,0);xv.fill();
+  // Head
+  let gy=xv.createRadialGradient(cx-6,cy-8+breath,3,cx,cy+breath,28);
+  gy.addColorStop(0,'#818cf8');gy.addColorStop(.5,'#6366f1');gy.addColorStop(1,'#4f46e5');
+  xv.fillStyle=gy;xv.beginPath();xv.arc(cx,cy+breath,26,0,Math.PI*2);xv.fill();
+  // Antenna
+  xv.fillStyle='#818cf8';xv.beginPath();xv.arc(cx-18,cy-10+breath,3.5,0,Math.PI*2);xv.fill();
+  xv.beginPath();xv.arc(cx+18,cy-10+breath,3.5,0,Math.PI*2);xv.fill();
+  // Eyes
+  let ey=cy-3+breath;
+  if(blink>3){
+    xv.strokeStyle='#1e1b4b';xv.lineWidth=1.8;
+    xv.beginPath();xv.moveTo(cx-7,ey);xv.lineTo(cx-1,ey);xv.stroke();
+    xv.beginPath();xv.moveTo(cx+1,ey);xv.lineTo(cx+7,ey);xv.stroke();
+  }else{
+    let eOpen=expr==='happy'?.5:0;
+    xv.fillStyle='#1e1b4b';
+    xv.beginPath();xv.arc(cx-4,ey,3.5-eOpen,0,Math.PI*2);xv.fill();
+    xv.beginPath();xv.arc(cx+4,ey,3.5-eOpen,0,Math.PI*2);xv.fill();
+    xv.fillStyle='#c7d2fe';
+    xv.beginPath();xv.arc(cx-3.5,ey-1,1.2-eOpen*.5,0,Math.PI*2);xv.fill();
+    xv.beginPath();xv.arc(cx+4.5,ey-1,1.2-eOpen*.5,0,Math.PI*2);xv.fill();
+  }
+  // Mouth
+  let my=cx+8+breath;
+  xv.strokeStyle='#1e1b4b';xv.lineWidth=1.8;
+  if(mouthOpen>.05){
+    let oh=2.5+mouthOpen*6;
+    xv.fillStyle='#1e1b4b';
+    xv.beginPath();xv.ellipse(cx,my,6.5,oh,0,0,Math.PI*2);xv.fill();
+    xv.fillStyle='#cbd5e1';xv.beginPath();xv.ellipse(cx,my-1,4,oh*.3,0,0,Math.PI*2);xv.fill();
+  }else if(expr==='happy'){
+    xv.beginPath();xv.arc(cx,my-1,6,.15,Math.PI-.15);xv.stroke();
+  }else{
+    xv.beginPath();xv.arc(cx,my-1.5,5.5,.2,Math.PI-.2);xv.stroke();
+  }
+  // Listening ring
+  if(listening){
+    xv.strokeStyle='rgba(99,102,241,.25)';xv.lineWidth=1.5;
+    let r=32+Math.sin(vz*.08)*2;
+    xv.beginPath();xv.arc(cx,cy+breath,r,0,Math.PI*2);xv.stroke()
+  }
+  requestAnimationFrame(drawVtuber)
+}
+drawVtuber();
+
+// CHAT
+let rec=null,lstn=false,busy=false;
+try{let S=window.SpeechRecognition||window.webkitSpeechRecognition;if(S){rec=new S();rec.lang='es';rec.interimResults=false}}catch(e){}
+function vozScroll(){let ch=document.getElementById('vozChat');ch.scrollTop=ch.scrollHeight}
+function vozAdd(t,c){
+  let d=document.createElement('div');d.className='msg '+c;
+  let av=c==='bot'?'🤖':'👤';
+  d.innerHTML=`<div class="av">${av}</div><div class="b">${t}</div>`;
+  document.getElementById('vozChat').appendChild(d);
+  vozScroll()
+}
+function vozTk(){
+  let d=document.createElement('div');d.className='msg bot';d.id='_vt';
+  d.innerHTML='<div class="av">🤖</div><div class="b"><div class="dots"><span></span><span></span><span></span></div></div>';
+  document.getElementById('vozChat').appendChild(d);vozScroll()
+}
+function vozTd(){let t=document.getElementById('_vt');if(t)t.remove()}
+async function vozSend(){
+  sndSend();
+  let i=document.getElementById('vozInp'),txt=i.value.trim();if(!txt)return;
+  i.value='';vozAdd(txt,'usr');vozTk();
+  try{
+    let r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:txt})});
+    let d=await r.json();
+    let a=d.answer||'Sin respuesta';
+    vozTd();vozAdd(a,'bot');sndRecv();
+    speechSynthesis.cancel();
+    let limpio=a.replace(/[*_#`~\[\]()>|]/g,'');
+    let u=new SpeechSynthesisUtterance(limpio);
+    u.lang='es-ES';
+    u.onstart=()=>{speak=true;expr='happy';document.getElementById('vozStatus').textContent='🔊 Hablando...'};
+    u.onend=()=>{speak=false;expr='neutral';document.getElementById('vozStatus').textContent='💬 Escuchando...';vozScroll()};
+    speechSynthesis.speak(u);
+  }catch(e){vozTd();vozAdd('Error: '+e.message,'bot')}
+}
+function vozToggle(){
+  if(!rec||busy)return;
+  if(lstn){rec.stop();listening=false;document.getElementById('vozStatus').textContent='💬 Escuchando...';sndMicOff();return}
+  sndMicOn();
+  busy=true;lstn=true;listening=true;document.getElementById('vozMic').classList.add('rec');
+  document.getElementById('vozStatus').textContent='🎤 Grabando...';
+  rec.onresult=function(e){
+    document.getElementById('vozInp').value=e.results[0][0].transcript;
+    document.getElementById('vozInp').focus();
+  };
+  rec.onend=function(){document.getElementById('vozMic').classList.remove('rec');lstn=false;busy=false;listening=false;document.getElementById('vozStatus').textContent='💬 Escuchando...'};
+  rec.onerror=function(){document.getElementById('vozMic').classList.remove('rec');lstn=false;busy=false;listening=false;document.getElementById('vozStatus').textContent='💬 Escuchando...'};
+  rec.start();
+}
+
+/* ============ VITRINA: demos interactivas ============ */
+async function prodFetch(url, body){
+  const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  return r.json();
+}
+// ===== RAG con upload =====
+const ragDrop = document.getElementById('ragDrop'), ragFile = document.getElementById('ragFile');
+const ragFileChip = document.getElementById('ragFileChip'), ragBtn = document.getElementById('ragBtn');
+const ragInput = document.getElementById('ragInput'), ragResults = document.getElementById('ragResults');
+let archivoSeleccionado = null;
+ragDrop.addEventListener('click', () => ragFile.click());
+ragDrop.addEventListener('dragover', e => { e.preventDefault(); ragDrop.classList.add('over'); });
+ragDrop.addEventListener('dragleave', () => ragDrop.classList.remove('over'));
+ragDrop.addEventListener('drop', e => { e.preventDefault(); ragDrop.classList.remove('over'); if(e.dataTransfer.files[0]) seleccionarArchivo(e.dataTransfer.files[0]); });
+ragFile.addEventListener('change', () => { if(ragFile.files[0]) seleccionarArchivo(ragFile.files[0]); });
+async function seleccionarArchivo(f){
+  archivoSeleccionado = f;
+  ragFileChip.style.display = 'block';
+  ragFileChip.innerHTML = `<div class="file-chip">${f.name} <span style="color:#8a93a5">(${(f.size/1024).toFixed(0)} KB)</span></div>`;
+  ragResults.innerHTML = '<div class="msg-aura">Indexando documento… esto toma unos segundos ⏳</div>';
+  const fd = new FormData();
+  fd.append('archivo', f);
+  try{
+    const r = await fetch('/api/upload', {method:'POST', body: fd});
+    const d = await r.json();
+    if(d.ok){
+      ragFileChip.innerHTML = `<div class="file-chip ok">${d.nombre} · ${d.chunks} chunks indexados</div>`;
+      ragResults.innerHTML = `<div class="msg-aura">✅ Documento indexado (${d.chunks} chunks). Ahora pregúntale lo que quieras saber sobre él.</div>`;
+    } else {
+      ragResults.innerHTML = `<div class="msg-aura">⚠️ ${d.error || 'Error al indexar'}</div>`;
+      ragFileChip.style.display = 'none';
+    }
+  } catch(e){
+    ragResults.innerHTML = `<div class="msg-aura">⚠️ Error de conexión: ${e.message}</div>`;
+  }
+}
+ragBtn.addEventListener('click', async () => {
+  const q = ragInput.value.trim();
+  if(!q) return;
+  ragResults.innerHTML = `<div class="msg-user">${q}</div><div class="msg-aura">Pensando…</div>`;
+  ragBtn.disabled = true;
+  const d = await prodFetch('/api/chat', {question: q});
+  ragResults.innerHTML = `<div class="msg-user">${q}</div><div class="msg-aura">${d.answer || 'Sin respuesta'}</div>`;
+  ragBtn.disabled = false;
+});
+ragInput.addEventListener('keydown', e => { if(e.key==='Enter') ragBtn.click(); });
+// ===== Noticias =====
+const newsBtn = document.getElementById('newsBtn'), newsInput = document.getElementById('newsInput'), newsResults = document.getElementById('newsResults');
+newsBtn.addEventListener('click', async () => {
+  const tema = newsInput.value.trim();
+  newsResults.innerHTML = '<div class="msg-aura">Buscando noticias…</div>';
+  newsBtn.disabled = true;
+  const d = await prodFetch('/api/noticias', {tema});
+  if(d.noticias && d.noticias.length){
+    newsResults.innerHTML = d.noticias.map(n => `<div class="item"><b>${n.titulo}</b>${n.fuente ? `<span style="color:#8a93a5"> · ${n.fuente}</span>` : ''}${n.url ? `<br><a href="${n.url}" target="_blank" rel="noopener">Leer más →</a>` : ''}</div>`).join('');
+  } else {
+    newsResults.innerHTML = '<div class="msg-aura">No encontré noticias' + (d.error ? ` (${d.error})` : '') + '. Intenta con otro tema.</div>';
+  }
+  newsBtn.disabled = false;
+});
+newsInput.addEventListener('keydown', e => { if(e.key==='Enter') newsBtn.click(); });
+// ===== Investigativo =====
+const invBtn = document.getElementById('invBtn'), invInput = document.getElementById('invInput'), invResults = document.getElementById('invResults');
+invBtn.addEventListener('click', async () => {
+  const tema = invInput.value.trim() || 'AI agents';
+  invResults.innerHTML = '<div class="msg-aura">Buscando en arXiv…</div>';
+  invBtn.disabled = true;
+  const d = await prodFetch('/api/investigar', {tema});
+  if(d.papers && d.papers.length){
+    invResults.innerHTML = d.papers.map(p => `<div class="item"><b>${p.titulo}</b><span style="color:#8a93a5">${p.fecha || ''}</span><br><a href="${p.url}" target="_blank" rel="noopener">Ver paper →</a></div>`).join('');
+  } else {
+    invResults.innerHTML = '<div class="msg-aura">No encontré papers' + (d.error ? ` (${d.error})` : '') + '.</div>';
+  }
+  invBtn.disabled = false;
+});
+invInput.addEventListener('keydown', e => { if(e.key==='Enter') invBtn.click(); });
+
+/* ============ 24c: EFECTOS PREMIUM (JS vanilla) ============ */
+// 1. TEXT-SCRAMBLE: "AURA" se descodifica al cargar
+(function(){
+  const el = document.getElementById('scrambleTitulo');
+  if(!el) return;
+  const original = 'AURA';
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%&';
+  let progreso = 0;
+  const total = 25; // frames
+  function frame(){
+    if(progreso >= total){ el.childNodes[0].textContent = original; return; }
+    let texto = '';
+    for(let i=0;i<original.length;i++){
+      if(i < Math.floor(progreso/total*original.length)) texto += original[i];
+      else texto += chars[Math.floor(Math.random()*chars.length)];
+    }
+    el.childNodes[0].textContent = texto;
+    progreso++;
+    setTimeout(frame, 45);
+  }
+  setTimeout(frame, 500); // tras cargar el hero
+})();
+// 2. TEXT-LOOP: chatea / habla / investiga / vende
+(function(){
+  const el = document.getElementById('loopWord');
+  if(!el) return;
+  const palabras = ['chatea','habla','investiga','vende','automatiza','analiza'];
+  let i = 0;
+  function cambiar(){
+    el.style.opacity = 0;
+    setTimeout(()=>{
+      i = (i+1)%palabras.length;
+      el.textContent = palabras[i];
+      el.style.transition = 'opacity .3s';
+      el.style.opacity = 1;
+    }, 300);
+  }
+  setInterval(cambiar, 2400);
+})();
+// 3. ANIMATED-NUMBER: contadores al hacer scroll
+(function(){
+  const nums = document.querySelectorAll('.stat .num');
+  const obs = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{
+      if(!en.isIntersecting) return;
+      const el = en.target;
+      const meta = parseInt(el.dataset.num || '0', 10);
+      let cur = 0;
+      const paso = Math.max(1, Math.ceil(meta/40));
+      const t = setInterval(()=>{
+        cur += paso;
+        if(cur >= meta){ cur = meta; clearInterval(t); }
+        el.textContent = cur;
+      }, 30);
+      obs.unobserve(el);
+    });
+  }, {threshold:.6});
+  nums.forEach(n=>obs.observe(n));
+})();
+// 4. MAGNETIC: botones que siguen el cursor
+(function(){
+  const btns = document.querySelectorAll('.cta a, .vit-btn');
+  if(matchMedia('(hover:none)').matches) return; // solo desktop
+  btns.forEach(b=>{
+    b.classList.add('magnetic');
+    b.addEventListener('mousemove', e=>{
+      const r = b.getBoundingClientRect();
+      const x = e.clientX - r.left - r.width/2;
+      const y = e.clientY - r.top - r.height/2;
+      b.style.transform = `translate(${x*.2}px, ${y*.3}px)`;
+    });
+    b.addEventListener('mouseleave', ()=>{ b.style.transform = ''; });
+  });
+})();
+// 5. CURSOR GLOW: halo que sigue el mouse
+(function(){
+  const glow = document.getElementById('cursorGlow');
+  if(!glow || matchMedia('(hover:none)').matches) return;
+  let mx=-999, my=-999, cx=-999, cy=-999;
+  document.addEventListener('mousemove', e=>{ mx=e.clientX; my=e.clientY; });
+  (function loop(){
+    cx += (mx-cx)*.12; cy += (my-cy)*.12;
+    glow.style.left = cx+'px'; glow.style.top = cy+'px';
+    requestAnimationFrame(loop);
+  })();
+})();
+
+</script>
+</body>
+</html>
